@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Balap Angka — Race Math</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --asphalt:#12121a;
+    --asphalt-2:#1b1b26;
+    --track:#26262f;
+    --line:#3a3a46;
+    --chalk:#f1f0ec;
+    --muted:#9b9baa;
+    --p1:#f10db4;
+    --p1-dim:#5c2027;
+    --p2:#33b1ff;
+    --p2-dim:#183648;
+    --good:#3fdd9a;
+    --bad:#ff6b6b;
+    --gold:#f4c542;
+    --radius:16px;
+    font-size: clamp(14px, 1.4vw + 8px, 18px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: var(--asphalt);
+    color: var(--chalk);
+    font-family:'Inter', system-ui, sans-serif;
+    overflow-x:hidden;
+    touch-action: manipulation;
+  }
+  #app{
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+  h1,h2,h3, .display{
+    font-family:'Rajdhani','Inter',sans-serif;
+    font-weight:700;
+    letter-spacing:0.02em;
+  }
+  /* ---------- HUD ---------- */
+  .hud{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0.7rem 1.1rem;
+    background: linear-gradient(180deg, var(--asphalt-2), var(--asphalt));
+    border-bottom: 3px solid var(--line);
+    position:relative; z-index:5;
+  }
+  .hud__title{
+    font-size:1.3rem;
+    margin:0;
+    display:flex; align-items:center; gap:0.5rem;
+  }
+  .hud__title .flag{
+    display:inline-block;
+    width:1.1em; height:1.1em;
+    background-image:
+      linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%),
+      linear-gradient(45deg, #000 25%, #fff 25%, #fff 75%, #000 75%);
+    background-size: 0.55em 0.55em;
+    background-position: 0 0, 0.275em 0.275em;
+    border-radius:2px;
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .hud__timer{
+    font-family:'Rajdhani',sans-serif;
+    font-weight:700;
+    font-size:1.4rem;
+    background: var(--track);
+    padding: 0.2rem 0.8rem;
+    border-radius: 999px;
+    border:1px solid var(--line);
+    min-width: 5.5em;
+    text-align:center;
+  }
+  .btn{
+    font-family:'Rajdhani',sans-serif;
+    font-weight:700;
+    font-size:0.95rem;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    border:none;
+    border-radius:10px;
+    padding:0.55rem 1.1rem;
+    cursor:pointer;
+    color:var(--asphalt);
+    background: var(--gold);
+    box-shadow: 0 3px 0 #a8862a;
+    transition: transform 0.08s ease;
+  }
+  .btn:active{ transform: translateY(2px); box-shadow: 0 1px 0 #a8862a; }
+  .btn--ghost{
+    background: transparent;
+    color: var(--chalk);
+    border: 2px solid var(--line);
+    box-shadow:none;
+  }
+  .btn--ghost:active{ transform: translateY(1px); }
+  .btn--small{ padding:0.35rem 0.7rem; font-size:0.8rem; border-radius:8px;}
+
+  /* ---------- Screens ---------- */
+  .screen{ flex:1; display:flex; flex-direction:column; }
+  [hidden]{ display:none !important; }
+
+  /* ---------- MENU ---------- */
+  #screen-menu{
+    padding: 1.2rem 1.1rem 2rem;
+    max-width: 640px;
+    width:100%;
+    margin: 0 auto;
+    gap:1.1rem;
+  }
+  .menu-hero{
+    text-align:center;
+    padding: 0.6rem 0 0.2rem;
+  }
+  .menu-hero h2{
+    font-size: clamp(1.6rem, 6vw, 2.3rem);
+    margin: 0 0 0.2rem;
+    color: var(--gold);
+    text-shadow: 0 2px 0 rgba(0,0,0,0.4);
+  }
+  .menu-hero p{
+    color: var(--muted);
+    margin:0;
+    font-size:0.95rem;
+  }
+  .card{
+    background: var(--asphalt-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+  }
+  .card h3{
+    margin:0 0 0.7rem;
+    font-size:1.05rem;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .players-row{ display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
+  .player-input{ display:flex; flex-direction:column; gap:0.35rem; }
+  .player-input label{ font-size:0.8rem; color:var(--muted); font-weight:600; }
+  .player-input input{
+    font-family:'Rajdhani',sans-serif;
+    font-weight:600;
+    font-size:1rem;
+    background: var(--track);
+    border:2px solid var(--line);
+    border-radius:8px;
+    padding:0.5rem 0.6rem;
+    color:var(--chalk);
+  }
+  .player-input.p1 input{ border-color: var(--p1); }
+  .player-input.p2 input{ border-color: var(--p2); }
+  .player-input input:focus{ outline:none; }
+
+  .chip-row{ display:flex; flex-wrap:wrap; gap:0.5rem; }
+  .chip{
+    display:flex; align-items:center; gap:0.4rem;
+    background: var(--track);
+    border:2px solid var(--line);
+    border-radius:999px;
+    padding:0.4rem 0.9rem;
+    cursor:pointer;
+    font-family:'Rajdhani',sans-serif;
+    font-weight:600;
+    font-size:1rem;
+    user-select:none;
+  }
+  .chip input{ accent-color: var(--gold); width:1.05em; height:1.05em; }
+  .chip.active{ border-color: var(--gold); background: rgba(244,197,66,0.12); }
+
+  .diff-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem; }
+  .diff-opt{
+    text-align:center;
+    background: var(--track);
+    border:2px solid var(--line);
+    border-radius:10px;
+    padding:0.55rem 0.3rem;
+    cursor:pointer;
+    font-family:'Rajdhani',sans-serif;
+    font-weight:700;
+  }
+  .diff-opt small{ display:block; color:var(--muted); font-weight:500; font-size:0.7rem; }
+  .diff-opt.active{ border-color: var(--gold); color: var(--gold); }
+
+  .controls-help{
+    display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;
+    font-size:0.85rem; color:var(--muted);
+  }
+  .controls-help .who{ font-weight:700; margin-bottom:0.3rem; display:block; }
+  .controls-help .p1t{ color:var(--p1); }
+  .controls-help .p2t{ color:var(--p2); }
+  kbd{
+    background:var(--track); border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:0.05rem 0.4rem; font-family:'Rajdhani',sans-serif; font-weight:700;
+  }
+
+  #start-btn{ width:100%; padding:0.85rem; font-size:1.15rem; }
+  .warn{ color:var(--bad); font-size:0.85rem; text-align:center; min-height:1.2em; }
+
+  /* ---------- RACE ---------- */
+  #screen-race{ flex:1; display:flex; flex-direction:column; gap:0.5rem; padding:0.6rem; }
+  .track{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    background: var(--asphalt-2);
+    border-radius: var(--radius);
+    border:1px solid var(--line);
+    overflow:hidden;
+    min-height: 0;
+  }
+  .track--p1{ box-shadow: inset 3px 0 0 var(--p1); }
+  .track--p2{ box-shadow: inset 3px 0 0 var(--p2); }
+
+  .track__label{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0.35rem 0.8rem;
+    font-family:'Rajdhani',sans-serif; font-weight:700; font-size:0.95rem;
+  }
+  .track--p1 .track__label{ color: var(--p1); }
+  .track--p2 .track__label{ color: var(--p2); }
+  .track__label .q-count{ color: var(--muted); font-weight:600; font-size:0.85rem; }
+
+  .road{
+    position:relative;
+    height: 3.1rem;
+    margin: 0 0.6rem 0.5rem;
+    background: repeating-linear-gradient(90deg, #35353f 0 22px, #2c2c35 22px 44px);
+    border-radius: 8px;
+    border: 1px solid #000;
+  }
+  .road::before{
+    content:"";
+    position:absolute; left:0; right:26px; top:50%;
+    height:3px; transform:translateY(-50%);
+    background-image: repeating-linear-gradient(90deg, var(--chalk) 0 14px, transparent 14px 28px);
+    opacity:0.25;
+  }
+  .finish{
+    position:absolute; right:0; top:0; bottom:0; width:22px;
+    background-image:
+      repeating-conic-gradient(#0a0a0a 0% 25%, #f1f0ec 0% 50%);
+    background-size: 11px 11px;
+    border-left: 2px solid #000;
+  }
+  .checkpoints{
+    position:absolute; left:0; right:22px; top:0; bottom:0;
+    display:flex;
+  }
+  .checkpoints i{
+    flex:1; border-right: 1px dashed rgba(255,255,255,0.08);
+  }
+  .checkpoints i:last-child{ border-right:none; }
+
+  .car-wrap{
+    position:absolute; top:50%; left:0;
+    width: 15%;
+    transform: translate(0,-50%);
+    transition: left 0.45s cubic-bezier(.2,.8,.3,1.2);
+    will-change: left;
+  }
+  .car-svg{ width:100%; height:auto; display:block; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+  .track--p1 .car-svg{ color: var(--p1); }
+  .track--p2 .car-svg{ color: var(--p2); }
+
+  @keyframes bob{ 0%,100%{ transform: translate(0,-50%) rotate(0deg);} 50%{ transform: translate(0,calc(-50% - 2px)) rotate(-1deg);} }
+  .car-wrap.idle{ animation: bob 0.9s ease-in-out infinite; }
+
+  @keyframes boost{ 0%{ transform: translate(0,-50%) scale(1);} 40%{ transform: translate(0,-50%) scale(1.12,0.94);} 100%{ transform: translate(0,-50%) scale(1);} }
+  .car-wrap.boost .car-svg{ animation: boost 0.4s ease; }
+
+  @keyframes shake{
+    0%,100%{ transform: translate(0,-50%);}
+    20%{ transform: translate(-4px,-50%);}
+    40%{ transform: translate(4px,-50%);}
+    60%{ transform: translate(-3px,-50%);}
+    80%{ transform: translate(3px,-50%);}
+  }
+  .car-wrap.shake{ animation: shake 0.35s ease; }
+
+  .qpanel{
+    padding: 0 0.8rem 0.7rem;
+    display:flex; flex-direction:column; gap:0.5rem; flex:1; justify-content:center;
+  }
+  .qtext{
+    font-family:'Rajdhani',sans-serif; font-weight:700;
+    font-size: clamp(1.4rem, 4.5vw, 2rem);
+    text-align:center;
+    letter-spacing:0.02em;
+  }
+  .answers{
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:0.5rem;
+  }
+  .ans-btn{
+    position:relative;
+    font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.15rem;
+    background: var(--track);
+    border:2px solid var(--line);
+    border-radius:10px;
+    color: var(--chalk);
+    padding: 0.6rem 0.2rem 0.4rem;
+    cursor:pointer;
+    min-height:2.6rem;
+  }
+  .track--p1 .ans-btn:active{ border-color: var(--p1); }
+  .track--p2 .ans-btn:active{ border-color: var(--p2); }
+  .ans-btn .key-badge{
+    position:absolute; top:2px; right:4px;
+    font-size:0.62rem; color: var(--muted);
+    font-family:'Inter',sans-serif; font-weight:600;
+  }
+  .ans-btn.correct{ background: var(--good); color:#0b3324; border-color:var(--good); }
+  .ans-btn.wrong{ background: var(--bad); color:#3a0d0d; border-color:var(--bad); }
+  .ans-btn:disabled{ opacity:0.55; cursor:default; }
+
+  /* ---------- RESULT ---------- */
+  #screen-result{
+    align-items:center; justify-content:center; text-align:center;
+    padding: 2rem 1.2rem; gap:1rem;
+    flex:1;
+  }
+  .winner-banner{
+    font-family:'Rajdhani',sans-serif; font-weight:700;
+    font-size: clamp(1.8rem, 7vw, 2.8rem);
+    display:flex; align-items:center; gap:0.6rem;
+  }
+  .winner-banner .flag{
+    width:1em; height:1em;
+    background-image:
+      linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%),
+      linear-gradient(45deg, #000 25%, #fff 25%, #fff 75%, #000 75%);
+    background-size: 0.5em 0.5em;
+    background-position: 0 0, 0.25em 0.25em;
+    border-radius:3px;
+  }
+  .result-cards{ display:flex; gap:0.9rem; flex-wrap:wrap; justify-content:center; }
+  .result-card{
+    background: var(--asphalt-2); border:2px solid var(--line); border-radius:12px;
+    padding:0.8rem 1.2rem; min-width:150px;
+  }
+  .result-card.win{ border-color: var(--gold); }
+  .result-card h4{ margin:0 0 0.3rem; font-family:'Rajdhani',sans-serif; font-size:1.1rem; }
+  .result-card .time{ font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.3rem; color:var(--gold); }
+  .result-actions{ display:flex; gap:0.7rem; margin-top:0.6rem; }
+
+  /* ---------- Modal (petunjuk) ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6);
+    display:flex; align-items:center; justify-content:center; z-index:50;
+    padding:1rem;
+  }
+  .modal{
+    background: var(--asphalt-2); border:1px solid var(--line); border-radius: var(--radius);
+    max-width:480px; width:100%; padding:1.2rem; max-height:85vh; overflow:auto;
+  }
+  .modal h3{ margin-top:0; color:var(--gold); }
+  .modal ul{ padding-left:1.1rem; line-height:1.7; font-size:0.92rem; }
+  .modal .btn{ margin-top:0.6rem; }
+
+  @media (min-width: 720px){
+    #screen-race{ padding:1rem 1.4rem; gap:0.8rem; }
+    .road{ height:3.6rem; }
+    .qtext{ font-size:1.9rem; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="hud">
+    <h1 class="hud__title"><span class="flag"></span> Balap Angka</h1>
+    <div class="hud__timer" id="hud-timer">00:00.0</div>
+    <button class="btn btn--ghost btn--small" id="help-btn" type="button">? Bantuan</button>
+  </div>
+
+  <!-- MENU -->
+  <section class="screen" id="screen-menu">
+    <div class="menu-hero">
+      <h2>Siapa yang paling cepat berhitung?</h2>
+      <p>2 pemain, 1 layar. Jawab 10 soal secepat mungkin dan capai garis finish duluan!</p>
+    </div>
+
+    <div class="card">
+      <h3>Nama Pembalap</h3>
+      <div class="players-row">
+        <div class="player-input p1">
+          <label>Pemain 1 (Keyboard: A S D F)</label>
+          <input type="text" id="p1-name" value="Pemain 1" maxlength="14">
+        </div>
+        <div class="player-input p2">
+          <label>Pemain 2 (Keyboard: J K L ;)</label>
+          <input type="text" id="p2-name" value="Pemain 2" maxlength="14">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Jenis Soal</h3>
+      <div class="chip-row" id="ops-row">
+        <label class="chip active" data-op="+"><input type="checkbox" value="+" checked> Penjumlahan (+)</label>
+        <label class="chip active" data-op="-"><input type="checkbox" value="-" checked> Pengurangan (−)</label>
+        <label class="chip" data-op="×"><input type="checkbox" value="×"> Perkalian (×)</label>
+        <label class="chip active" data-op="÷"><input type="checkbox" value="÷" checked> Pembagian (÷)</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Tingkat Kesulitan</h3>
+      <div class="diff-row" id="diff-row">
+        <div class="diff-opt active" data-diff="easy">Mudah<small>1–10</small></div>
+        <div class="diff-opt" data-diff="medium">Sedang<small>1–25</small></div>
+        <div class="diff-opt" data-diff="hard">Sulit<small>1–50</small></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Cara Main</h3>
+      <div class="controls-help">
+        <div>
+          <span class="who p1t">Pemain 1 (PC)</span>
+          Tekan <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> untuk pilih jawaban 1–4.
+        </div>
+        <div>
+          <span class="who p2t">Pemain 2 (PC)</span>
+          Tekan <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd> untuk pilih jawaban 1–4.
+        </div>
+      </div>
+      <p style="color:var(--muted); font-size:0.85rem; margin:0.6rem 0 0;">Di HP: cukup ketuk tombol jawaban langsung di layar masing-masing.</p>
+    </div>
+
+    <div>
+      <button class="btn" id="start-btn" type="button">Mulai Balapan 🏁</button>
+      <div class="warn" id="menu-warn"></div>
+    </div>
+  </section>
+
+  <!-- RACE -->
+  <section class="screen" id="screen-race" hidden>
+    <div class="track track--p1" id="track-p1">
+      <div class="track__label">
+        <span id="p1-display-name">Pemain 1</span>
+        <span class="q-count" id="p1-qcount">Soal 1/10</span>
+      </div>
+      <div class="road">
+        <div class="checkpoints" id="p1-checkpoints"></div>
+        <div class="car-wrap idle" id="p1-car">
+          <svg class="car-svg" viewBox="0 0 100 40">
+            <circle cx="26" cy="34" r="7" fill="#1a1a1a"/>
+            <circle cx="74" cy="34" r="7" fill="#1a1a1a"/>
+            <circle cx="26" cy="34" r="3" fill="#666"/>
+            <circle cx="74" cy="34" r="3" fill="#666"/>
+            <rect x="10" y="18" width="80" height="14" rx="5" fill="currentColor"/>
+            <polygon points="24,18 34,4 58,4 70,18" fill="currentColor"/>
+            <polygon points="70,20 96,24 96,28 70,30" fill="currentColor"/>
+            <rect x="12" y="7" width="4" height="13" fill="currentColor"/>
+            <rect x="7" y="6" width="12" height="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="finish"></div>
+      </div>
+      <div class="qpanel">
+        <div class="qtext" id="p1-qtext">—</div>
+        <div class="answers" id="p1-answers"></div>
+      </div>
+    </div>
+
+    <div class="track track--p2" id="track-p2">
+      <div class="track__label">
+        <span id="p2-display-name">Pemain 2</span>
+        <span class="q-count" id="p2-qcount">Soal 1/10</span>
+      </div>
+      <div class="road">
+        <div class="checkpoints" id="p2-checkpoints"></div>
+        <div class="car-wrap idle" id="p2-car">
+          <svg class="car-svg" viewBox="0 0 100 40">
+            <circle cx="26" cy="34" r="7" fill="#1a1a1a"/>
+            <circle cx="74" cy="34" r="7" fill="#1a1a1a"/>
+            <circle cx="26" cy="34" r="3" fill="#666"/>
+            <circle cx="74" cy="34" r="3" fill="#666"/>
+            <rect x="10" y="18" width="80" height="14" rx="5" fill="currentColor"/>
+            <polygon points="24,18 34,4 58,4 70,18" fill="currentColor"/>
+            <polygon points="70,20 96,24 96,28 70,30" fill="currentColor"/>
+            <rect x="12" y="7" width="4" height="13" fill="currentColor"/>
+            <rect x="7" y="6" width="12" height="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="finish"></div>
+      </div>
+      <div class="qpanel">
+        <div class="qtext" id="p2-qtext">—</div>
+        <div class="answers" id="p2-answers"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="screen" id="screen-result" hidden>
+    <div class="winner-banner"><span class="flag"></span><span id="winner-text">—</span></div>
+    <div class="result-cards" id="result-cards"></div>
+    <div class="result-actions">
+      <button class="btn" id="replay-btn" type="button">Main Lagi</button>
+      <button class="btn btn--ghost" id="menu-btn" type="button">Ubah Pengaturan</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const TOTAL_QUESTIONS = 10;
+  const P1_KEYS = { a:0, s:1, d:2, f:3 };
+  const P2_KEYS = { j:0, k:1, l:2, ';':3 };
+
+  const $ = (sel) => document.querySelector(sel);
+
+  const els = {
+    menu: $('#screen-menu'),
+    race: $('#screen-race'),
+    result: $('#screen-result'),
+    timer: $('#hud-timer'),
+    startBtn: $('#start-btn'),
+    menuWarn: $('#menu-warn'),
+    opsRow: $('#ops-row'),
+    diffRow: $('#diff-row'),
+    p1Name: $('#p1-name'),
+    p2Name: $('#p2-name'),
+    helpBtn: $('#help-btn'),
+    replayBtn: $('#replay-btn'),
+    menuBtn: $('#menu-btn'),
+    winnerText: $('#winner-text'),
+    resultCards: $('#result-cards'),
+  };
+
+  const playerEls = {
+    p1: {
+      track: $('#track-p1'), car: $('#p1-car'), checkpoints: $('#p1-checkpoints'),
+      qtext: $('#p1-qtext'), answers: $('#p1-answers'), qcount: $('#p1-qcount'),
+      displayName: $('#p1-display-name'),
+    },
+    p2: {
+      track: $('#track-p2'), car: $('#p2-car'), checkpoints: $('#p2-checkpoints'),
+      qtext: $('#p2-qtext'), answers: $('#p2-answers'), qcount: $('#p2-qcount'),
+      displayName: $('#p2-display-name'),
+    }
+  };
+
+  let settings = { ops: ['+','-','÷'], difficulty: 'easy' };
+
+  let game = null; // built on start
+
+  // ---------- Menu interactions ----------
+  els.opsRow.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      // allow the native checkbox toggle, then sync class next tick
+      setTimeout(() => {
+        const cb = chip.querySelector('input');
+        chip.classList.toggle('active', cb.checked);
+      }, 0);
+    });
+  });
+
+  els.diffRow.querySelectorAll('.diff-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      els.diffRow.querySelectorAll('.diff-opt').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      settings.difficulty = opt.dataset.diff;
+    });
+  });
+
+  els.helpBtn.addEventListener('click', showHelp);
+
+  function showHelp(){
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="modal">
+        <h3>Cara Bermain</h3>
+        <ul>
+          <li>Setiap pemain punya jalur balap dan soal masing-masing.</li>
+          <li>Jawab benar &rarr; mobilmu maju satu langkah menuju garis finish.</li>
+          <li>Jawab salah &rarr; mobil tidak maju, coba jawab ulang secepatnya.</li>
+          <li>Selesaikan 10 soal lebih dulu untuk menang!</li>
+          <li><b>PC:</b> Pemain 1 pakai tombol A S D F, Pemain 2 pakai J K L ;</li>
+          <li><b>HP:</b> ketuk langsung tombol jawaban di layar masing-masing pemain.</li>
+        </ul>
+        <button class="btn" id="close-help">Mengerti!</button>
+      </div>`;
+    document.body.appendChild(backdrop);
+    backdrop.querySelector('#close-help').addEventListener('click', () => backdrop.remove());
+    backdrop.addEventListener('click', (e) => { if(e.target === backdrop) backdrop.remove(); });
+  }
+
+  els.startBtn.addEventListener('click', () => {
+    const checkedOps = Array.from(els.opsRow.querySelectorAll('input:checked')).map(i => i.value);
+    if (checkedOps.length === 0){
+      els.menuWarn.textContent = 'Pilih minimal satu jenis soal ya!';
+      return;
+    }
+    els.menuWarn.textContent = '';
+    settings.ops = checkedOps;
+    startGame();
+  });
+
+  els.replayBtn.addEventListener('click', () => { startGame(); });
+  els.menuBtn.addEventListener('click', () => { showScreen('menu'); });
+
+  function showScreen(name){
+    els.menu.hidden = name !== 'menu';
+    els.race.hidden = name !== 'race';
+    els.result.hidden = name !== 'result';
+  }
+
+  // ---------- Math generation ----------
+  function randInt(min, max){ return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+  function diffMax(){
+    if (settings.difficulty === 'easy') return 10;
+    if (settings.difficulty === 'medium') return 25;
+    return 50;
+  }
+
+  function generateQuestion(){
+    const ops = settings.ops;
+    const op = ops[randInt(0, ops.length - 1)];
+    const max = diffMax();
+    let a, b, answer, text;
+
+    if (op === '+'){
+      a = randInt(1, max); b = randInt(1, max);
+      answer = a + b; text = `${a} + ${b} = ?`;
+    } else if (op === '-'){
+      a = randInt(1, max); b = randInt(0, a);
+      answer = a - b; text = `${a} − ${b} = ?`;
+    } else if (op === '×'){
+      const mmax = Math.min(max, 12);
+      a = randInt(1, mmax); b = randInt(1, mmax);
+      answer = a * b; text = `${a} × ${b} = ?`;
+    } else { // ÷
+      const dmax = Math.min(max, 12);
+      b = randInt(1, dmax); answer = randInt(1, dmax);
+      a = b * answer; text = `${a} ÷ ${b} = ?`;
+    }
+
+    const choicesSet = new Set([answer]);
+    let guard = 0;
+    while (choicesSet.size < 4 && guard < 50){
+      guard++;
+      const offset = randInt(-Math.max(3, Math.round(max*0.15)), Math.max(3, Math.round(max*0.15)));
+      let candidate = answer + offset;
+      if (offset === 0) candidate = answer + (guard % 2 === 0 ? guard : -guard);
+      if (candidate < 0) candidate = answer + guard;
+      choicesSet.add(candidate);
+    }
+    const choices = shuffle(Array.from(choicesSet)).map(v => ({ value: v, correct: v === answer }));
+    return { text, choices };
+  }
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--){
+      const j = randInt(0, i);
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // ---------- Game lifecycle ----------
+  function startGame(){
+    game = {
+      startTime: performance.now(),
+      timerHandle: null,
+      finished: false,
+      p1: { progress: 0, question: null, locked: false, finishTime: null, name: (els.p1Name.value.trim() || 'Pemain 1') },
+      p2: { progress: 0, question: null, locked: false, finishTime: null, name: (els.p2Name.value.trim() || 'Pemain 2') },
+    };
+
+    playerEls.p1.displayName.textContent = game.p1.name;
+    playerEls.p2.displayName.textContent = game.p2.name;
+
+    buildCheckpoints('p1');
+    buildCheckpoints('p2');
+
+    nextQuestion('p1');
+    nextQuestion('p2');
+
+    layoutCar('p1');
+    layoutCar('p2');
+
+    showScreen('race');
+
+    game.timerHandle = setInterval(updateTimer, 100);
+    window.addEventListener('resize', onResize);
+  }
+
+  function buildCheckpoints(key){
+    const el = playerEls[key].checkpoints;
+    el.innerHTML = '';
+    for (let i = 0; i < TOTAL_QUESTIONS; i++){
+      el.appendChild(document.createElement('i'));
+    }
+  }
+
+  function updateTimer(){
+    const elapsed = performance.now() - game.startTime;
+    els.timer.textContent = formatTime(elapsed);
+  }
+
+  function formatTime(ms){
+    const totalSec = ms / 1000;
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${String(m).padStart(2,'0')}:${s.toFixed(1).padStart(4,'0')}`;
+  }
+
+  function nextQuestion(key){
+    const p = game[key];
+    p.question = generateQuestion();
+    p.locked = false;
+
+    const pe = playerEls[key];
+    pe.qtext.textContent = p.question.text;
+    pe.qcount.textContent = `Soal ${Math.min(p.progress + 1, TOTAL_QUESTIONS)}/${TOTAL_QUESTIONS}`;
+    pe.answers.innerHTML = '';
+
+    const badges = key === 'p1' ? ['A','S','D','F'] : ['J','K','L',';'];
+    p.question.choices.forEach((choice, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ans-btn';
+      btn.textContent = choice.value;
+      const badge = document.createElement('span');
+      badge.className = 'key-badge';
+      badge.textContent = badges[idx];
+      btn.appendChild(badge);
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        handleAnswer(key, idx);
+      });
+      pe.answers.appendChild(btn);
+    });
+  }
+
+  function handleAnswer(key, idx){
+    if (!game || game.finished) return;
+    const p = game[key];
+    if (p.locked || !p.question) return;
+    const choice = p.question.choices[idx];
+    if (!choice) return;
+
+    const pe = playerEls[key];
+    const btns = pe.answers.querySelectorAll('.ans-btn');
+
+    if (choice.correct){
+      p.locked = true;
+      btns[idx].classList.add('correct');
+      btns.forEach(b => b.disabled = true);
+      beep(true);
+      p.progress++;
+      bumpCar(key);
+      layoutCar(key);
+
+      if (p.progress >= TOTAL_QUESTIONS){
+        finishPlayer(key);
+        return;
+      }
+      setTimeout(() => nextQuestion(key), 380);
+    } else {
+      btns[idx].classList.add('wrong');
+      beep(false);
+      shakeCar(key);
+      p.locked = true;
+      btns.forEach(b => b.disabled = true);
+      setTimeout(() => {
+        btns[idx].classList.remove('wrong');
+        btns.forEach(b => b.disabled = false);
+        p.locked = false;
+      }, 550);
+    }
+  }
+
+  function layoutCar(key){
+    const pe = playerEls[key];
+    const p = game[key];
+    const track = pe.car.parentElement; // .road
+    const trackWidth = track.clientWidth;
+    const carWidth = pe.car.getBoundingClientRect().width || trackWidth * 0.15;
+    const usable = trackWidth - carWidth - 22; // 22 = finish strip width
+    const ratio = p.progress / TOTAL_QUESTIONS;
+    const left = Math.max(0, usable * ratio);
+    pe.car.style.left = `${left}px`;
+  }
+
+  function bumpCar(key){
+    const car = playerEls[key].car;
+    car.classList.remove('idle');
+    car.classList.add('boost');
+    setTimeout(() => { car.classList.remove('boost'); car.classList.add('idle'); }, 420);
+  }
+
+  function shakeCar(key){
+    const car = playerEls[key].car;
+    car.classList.add('shake');
+    setTimeout(() => car.classList.remove('shake'), 380);
+  }
+
+  function onResize(){
+    if (!game) return;
+    layoutCar('p1');
+    layoutCar('p2');
+  }
+
+  function finishPlayer(key){
+    game.finished = true;
+    clearInterval(game.timerHandle);
+    window.removeEventListener('resize', onResize);
+    game[key].finishTime = performance.now() - game.startTime;
+
+    // lock the other player's inputs too
+    ['p1','p2'].forEach(k => {
+      playerEls[k].answers.querySelectorAll('.ans-btn').forEach(b => b.disabled = true);
+    });
+
+    const other = key === 'p1' ? 'p2' : 'p1';
+    showResult(key, other);
+  }
+
+  function showResult(winnerKey, otherKey){
+    const winner = game[winnerKey];
+    const other = game[otherKey];
+
+    els.winnerText.textContent = `${winner.name} MENANG!`;
+    els.resultCards.innerHTML = '';
+
+    [ [winnerKey, winner, true], [otherKey, other, false] ].forEach(([k, p, isWinner]) => {
+      const card = document.createElement('div');
+      card.className = 'result-card' + (isWinner ? ' win' : '');
+      const timeText = p.finishTime != null ? formatTime(p.finishTime) : '—';
+      card.innerHTML = `
+        <h4 style="color:${k === 'p1' ? 'var(--p1)' : 'var(--p2)'}">${p.name}${isWinner ? ' 🏆' : ''}</h4>
+        <div class="time">${timeText}</div>
+        <div style="color:var(--muted); font-size:0.8rem;">${p.progress}/${TOTAL_QUESTIONS} soal</div>
+      `;
+      els.resultCards.appendChild(card);
+    });
+
+    showScreen('result');
+  }
+
+  // ---------- Keyboard controls ----------
+  window.addEventListener('keydown', (e) => {
+    if (!game || game.finished || els.race.hidden) return;
+    const key = e.key.toLowerCase();
+    if (key in P1_KEYS){
+      e.preventDefault();
+      handleAnswer('p1', P1_KEYS[key]);
+    } else if (key in P2_KEYS){
+      e.preventDefault();
+      handleAnswer('p2', P2_KEYS[key]);
+    }
+  });
+
+  // ---------- Simple audio feedback ----------
+  let audioCtx = null;
+  function beep(good){
+    try{
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = good ? 720 : 160;
+      gain.gain.value = 0.05;
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.15);
+      osc.stop(audioCtx.currentTime + 0.16);
+    } catch(err){ /* audio not available, ignore */ }
+  }
+
+  showScreen('menu');
+})();
+</script>
+</body>
+</html>
